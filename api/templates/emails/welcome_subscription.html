@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        .container { max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif; }
+        .header { background: #4CAF50; color: white; padding: 20px; text-align: center; }
+        .content { padding: 30px; background: #f9f9f9; line-height: 1.6; }
+        .footer { padding: 20px; text-align: center; color: #666; font-size: 12px; }
+        ul { margin: 15px 0; padding-left: 20px; }
+        li { margin-bottom: 8px; }
+        a { color: #4CAF50; text-decoration: none; }
+        .button { 
+            display: inline-block; 
+            background: #4CAF50; 
+            color: white; 
+            padding: 12px 24px; 
+            text-decoration: none; 
+            border-radius: 4px; 
+            margin: 15px 0; 
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Welcome to Pravidhi!</h1>
+        </div>
+        
+        <div class="content">
+            <p>Hello,</p>
+            
+            <p>Thank you for subscribing to our newsletter! We're excited to have you on board.</p>
+            
+            <p>Here's what you can expect from us:</p>
+            <ul>
+                <li>📰 Latest features and updates</li>
+                <li>🎯 Company news and announcements</li>
+                <li>💡 Tips, tutorials, and best practices</li>
+                <li>🎁 Exclusive offers and promotions</li>
+            </ul>
+            
+            <p>Stay tuned for our next update!</p>
+            
+            <p style="text-align: center;">
+                <a href="{{ website_url }}" class="button">Visit Our Website</a>
+            </p>
+            
+            <p>If you have any questions, feel free to reply to this email.</p>
+            
+            <p>Best regards,<br>
+            <strong>The Pravidhi Team</strong></p>
+        </div>
+        
+        <div class="footer">
+            <p>© {% now "Y" %} Pravidhi. All rights reserved.</p>
+            <p>
+                <a href="{{ unsubscribe_link }}">Unsubscribe</a> | 
+                <a href="{{ website_url }}">Visit Website</a> |
+                <a href="{{ contact_url }}">Contact Us</a>
+            </p>
+            <p>You received this email because you subscribed to our newsletter.</p>
+        </div>
+    </div>
+</body>
+</html>

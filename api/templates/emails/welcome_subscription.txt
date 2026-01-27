@@ -1,0 +1,29 @@
+Welcome to Pravidhi!
+
+Hello,
+
+Thank you for subscribing to our newsletter! We're excited to have you on board.
+
+Here's what you can expect from us:
+- Latest features and updates
+- Company news and announcements
+- Tips, tutorials, and best practices
+- Exclusive offers and promotions
+
+Stay tuned for our next update!
+
+Visit our website: {{ website_url }}
+
+If you have any questions, feel free to reply to this email.
+
+Best regards,
+The Pravidhi Team
+
+---
+© {% now "Y" %} Pravidhi. All rights reserved.
+
+Unsubscribe: {{ unsubscribe_link }}
+Visit Website: {{ website_url }}
+Contact Us: {{ contact_url }}
+
+You received this email because you subscribed to our newsletter.
