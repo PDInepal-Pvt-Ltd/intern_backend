@@ -10,10 +10,13 @@ from django.template.loader import render_to_string
 from django.conf import settings
 from django.shortcuts import render, get_object_or_404
 from .models import Subscriber, Blog, ContactMessage
+import json
+from django.views.decorators.csrf import csrf_exempt
 
 def PravidhiView(request):
     return render(request, 'index.html')
 
+@csrf_exempt
 @api_view(['GET', 'POST'])
 def subscribe(request):
     if request.method == "GET":
@@ -24,6 +27,8 @@ def subscribe(request):
     elif request.method == "POST":
 
         email = request.data.get('email')
+        # data = json.loads(request.body)
+        # email = data.get("email")
 
         if not email:
             return Response({"error": "Email is required!"}, status=status.HTTP_400_BAD_REQUEST)
