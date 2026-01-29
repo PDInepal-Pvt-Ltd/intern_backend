@@ -1,7 +1,7 @@
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from rest_framework import status
-from api.serializers import SubscriberSerializer, BlogListSerializer, BlogDetailSerializer, ContactMessageSerializer
+from api.serializers import SubscriberSerializer, BlogListSerializer, BlogDetailSerializer, ContactMessageSerializer, InternshipSerializer
 from django.http import JsonResponse
 from django.core.exceptions import ValidationError
 from django.core.mail import EmailMultiAlternatives
@@ -9,7 +9,7 @@ from django.core.validators import validate_email
 from django.template.loader import render_to_string
 from django.conf import settings
 from django.shortcuts import render, get_object_or_404
-from .models import Subscriber, Blog, ContactMessage
+from .models import Subscriber, Blog, ContactMessage, Internship
 import json
 from django.views.decorators.csrf import csrf_exempt
 
@@ -96,9 +96,10 @@ def blog_list(request):
     
 @api_view(['GET'])
 def blog_detail(request, pk):
-    blog = get_object_or_404(Blog, pk=pk)
-    serializer = BlogDetailSerializer(blog)
-    return Response(serializer.data)
+    if request.method == 'GET':
+        blog = get_object_or_404(Blog, pk=pk)
+        serializer = BlogDetailSerializer(blog)
+        return Response(serializer.data)
 
 @api_view(['POST'])
 def create_contact(request):
@@ -111,6 +112,99 @@ def create_contact(request):
         )
     return Response(serializer.errors, status = status.HTTP_400_BAD_REQUEST)
 
+@api_view(['GET', 'POST'])
+def internship_list(request):
+    if request.method == 'GET':
+        internships = Internship.objects.all().order_by('-created_at')
+        serializer = InternshipSerializer(internships, many=True)
+        return Response({
+            "status": 200,
+            "success": True,
+            "message": "The internship is shown successfully",
+            "data": serializer.data
+        })
+    
+    if request.method == 'POST':
+        if not request.user.is_authenticated or not request.user.is_staff:
+            return Response({
+                "status": 403,
+                "success": False,
+                "message": "You are not authorized to perform this action",
+                "data": []
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        serializer = InternshipSerializer(data = request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                "status": 201,
+                "success": True,
+                "message": "Internship created successfully",
+                "data": serializer.data
+            }, status = status.HTTP_201_CREATED)
+        
+        return Response({
+            "status": 400,
+            "success": False,
+            "message": "Invalid data",
+            "data": serializer.data
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+@api_view(['GET','PUT','DELETE'])
+def internship_detail(request, pk):
+    internship = get_object_or_404(Internship, pk=pk)
+
+    if request.method == 'GET':
+        serializer = InternshipSerializer(internship)
+        return Response({
+            "status": 200,
+            "success": True,
+            "message": "Internship fetched successfully",
+            "data": serializer.data
+        })
+    
+    #admin le garni kam 
+    if not request.user.is_authenticated or not request.user.is_staff:
+        return Response({
+            "status": 403,
+            "success": False,
+            "message": "You are not authorized to perform this action",
+            "data": []
+        }, status=status.HTTP_403_FORBIDDEN)
+    
+    #update
+    if request.method in ['PUT', 'PATCH']:
+        serializer = InternshipSerializer(
+            internship,
+            data = request.data,
+            partial = (request.method == 'PATCH')
+        )
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                "status": 200,
+                "success": True,
+                "message": "Internship updated successfully",
+                "data": serializer.data
+            })
+        
+        return Response({
+            "status": 400,
+            "success": False,
+            "message": "Invalid data",
+            "data": serializer.errors
+        }, status=status.HTTP_400_BAD_rEQUEST)
+    
+    #delete ko lagi
+    if request.method == 'DELETE':
+        internship.delete()
+        return Response({
+            "status": 200,
+            "success": True,
+            "message": "Internship deleted successfully",
+            "data": []
+        })
 
 
 

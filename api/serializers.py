@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Subscriber, Blog, ContactMessage
+from .models import Subscriber, Blog, ContactMessage, Internship
 import re
 
 class SubscriberSerializer(serializers.ModelSerializer):
@@ -10,14 +10,7 @@ class SubscriberSerializer(serializers.ModelSerializer):
 class BlogListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Blog
-        fields = (
-            'id',
-            'title',
-            'author',
-            'description',
-            'date_created_at',
-            'image'
-        )
+        fields = "__all__"
 
 class BlogDetailSerializer(serializers.ModelSerializer):
     class Meta:
@@ -57,4 +50,17 @@ class ContactMessageSerializer(serializers.ModelSerializer):
             )
         return value
 
-        
+class InternshipSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = Internship
+        fields = [
+            'id',
+            'title',
+            'description',
+            'image',
+            'total_seats',
+            'is_open',
+            'created_at',
+        ]
+        read_only_fields = ['id', 'created_by']
