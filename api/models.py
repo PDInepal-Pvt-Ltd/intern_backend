@@ -1,8 +1,9 @@
 from django.db import models
 from django.utils import timezone
-from django.core.validators import RegexValidator
+from django.core.validators import RegexValidator, FileExtensionValidator
 from datetime import timedelta
-
+from django.core.exceptions import ValidationError
+import re
 # Create your models here.
 
 
@@ -87,3 +88,52 @@ class Internship(models.Model):
         # If i had applications, i would subtract them here
         # For now,let's just return total_seats
         return self.total_seats
+
+def validate_file_size(value):
+        filesize  = value.size
+        if filesize > 5 * 1024 *1024:
+            raise ValidationError("File too large. File size cannot exceed 5 MiB.")
+        return value
+
+class InternshipApplication(models.Model):
+    GENDER_CHOICES = (
+        ('male', 'Male'),
+        ('female', 'Female'),
+        ('other', 'Other')
+    )
+
+    contact_regex = RegexValidator(
+        regex=r'^\+977\s?\d{10}$',
+        message="Phone number must start with +977 and contain exactly 10 digits(e.g., +977 98XXXXXXXX) after it."
+    )
+
+    full_name = models.CharField(max_length=100)
+    duration = models.CharField(max_length=20)
+    college_name = models.CharField(max_length=200)
+    contact_number = models.CharField(
+        max_length=15,
+        validators=[contact_regex]
+    )
+    email = models.EmailField()
+    dob = models.DateField()
+    gender = models.CharField(
+        max_length=10,
+        choices=GENDER_CHOICES,
+        default='male'
+    )
+    address = models.CharField(max_length=255)
+    internship_title = models.CharField(max_length=100)
+    
+    cv_file = models.FileField(
+        upload_to='cvs/',
+        validators=[
+            FileExtensionValidator(allowed_extensions=['pdf', 'doc', 'docx']),
+            validate_file_size
+        ]
+    )
+
+    applied_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.full_name} - {self.internship_title}"
+

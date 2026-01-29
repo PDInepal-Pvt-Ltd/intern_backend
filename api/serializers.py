@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Subscriber, Blog, ContactMessage, Internship
+from .models import Subscriber, Blog, ContactMessage, Internship, InternshipApplication
 import re
 
 class SubscriberSerializer(serializers.ModelSerializer):
@@ -7,12 +7,7 @@ class SubscriberSerializer(serializers.ModelSerializer):
         model = Subscriber
         fields = "__all__"
 
-class BlogListSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Blog
-        fields = "__all__"
-
-class BlogDetailSerializer(serializers.ModelSerializer):
+class BlogSerializer(serializers.ModelSerializer):
     class Meta:
         model = Blog
         fields = "__all__"
@@ -64,3 +59,12 @@ class InternshipSerializer(serializers.ModelSerializer):
             'created_at',
         ]
         read_only_fields = ['id', 'created_by']
+
+class InternshipAppSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InternshipApplication
+        fields = "__all__"
+
+    def validate_contact_number(self, value):
+        cleaned = value.replace(" ", "")
+        return cleaned
