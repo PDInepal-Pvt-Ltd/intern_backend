@@ -18,14 +18,14 @@ class BlogDetailSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 class ContactMessageSerializer(serializers.ModelSerializer):
-    number = serializers.CharField(required = True)
+    phone = serializers.CharField(required = True)
     class Meta:
         model = ContactMessage
         fields = (
             'id',
             'name',
             'email',
-            'number',
+            'phone',
             'address',
             'subject',
             'message',
@@ -34,7 +34,7 @@ class ContactMessageSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ['id', 'created_at']
 
-    def validate_number(self, value):
+    def validate_phone(self, value):
         pattern = r'^\+977\d{10}$'
 
         if not re.match(pattern, value):

@@ -5,8 +5,8 @@ urlpatterns = [
     path('',views.PravidhiView),
     path('subscribe/', views.subscribe),
     path('blogs/', views.blog_list),
-    path('blogs/detail/<int:pk>/', views.blog_detail),
+    path('blogs/<int:pk>/', views.blog_detail),
     path('contactmessage/', views.create_contact),
     path('internship/', views.internship_list),
-    path('internship/detail/<int:pk>/', views.internship_detail)
+    path('internship/<int:pk>/', views.internship_detail)
 ]

@@ -17,7 +17,7 @@ class Subscriber(admin.ModelAdmin):
 
 @admin.register(ContactMessage)
 class ContactMessage(admin.ModelAdmin):
-    list_display = ['name', 'number', 'subject', 'message']
+    list_display = ['name', 'phone', 'subject', 'message']
     list_filter = ['status', 'created_at']
     search_fields = ['subject', 'message']
     readonly_fields = ['created_at']

@@ -37,15 +37,37 @@ ALLOWED_HOSTS = [
 
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',
+    "http://127.0.0.1:3000",
     'http://localhost:3001',
     'http://localhost:5173',
+    "http://127.0.0.1:5173",
+    
+]
+
+CORS_ALLOWED_ORIGINS += [
     'https://setsuko-oligochaetous-flossie.ngrok-free.dev',
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "https://*.ngrok-free.app",
+    "https://*.ngrok.io",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOW_HEADERS = [
-    'ngrok-skip-browser-warning'
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+    'ngrok-skip-browser-warning',
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True

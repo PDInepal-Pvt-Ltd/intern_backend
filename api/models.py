@@ -24,8 +24,6 @@ class Blog(models.Model):
     content = models.TextField(blank=True, null=True)
     image = models.ImageField(upload_to="blogimages", blank=True)
 
-    avatar = models.ImageField(
-        upload_to="blogimages", default="defaults/avatar.png")
     date_created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
     read_time = models.DurationField(default=timedelta(minutes=8))
@@ -50,7 +48,7 @@ class ContactMessage(models.Model):
 
     name = models.CharField(max_length=50)
     email = models.EmailField(blank=False, null=False)
-    number = models.CharField(
+    phone = models.CharField(
         max_length=14,
         validators=[phone_regex]
     )

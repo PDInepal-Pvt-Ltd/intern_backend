@@ -13,6 +13,8 @@ from .models import Subscriber, Blog, ContactMessage, Internship
 import json
 from django.views.decorators.csrf import csrf_exempt
 
+
+
 def PravidhiView(request):
     return render(request, 'index.html')
 
@@ -89,27 +91,125 @@ def send_welcome_subscription(email):
 
 @api_view(['GET'])
 def blog_list(request):
-    blogs = Blog.objects.order_by('-date_created_at')
-    serializer = BlogListSerializer(blogs, many=True)
-    return Response(serializer.data)
+    if request.method == 'GET': 
+        blogs = Blog.objects.order_by('-date_created_at')
+        serializer = BlogListSerializer(blogs, many=True)
+        return Response({
+            "status": 200,
+            "success": True,
+            "message": "The blogs list is fetched successfully",
+            "data": serializer.data
+        })
+    
+    if request.method == 'POST':
+        if not request.user.is_authenticated or not request.user.is_staff:
+            return Response({
+                "status": 403,
+                "success": False,
+                "message": "You are not authorized to perform this action",
+                "data": []
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        serializer = InternshipSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                "status": 201,
+                "success": True,
+                "message": "The blog was created successfully",
+                "data": serializer.data
+            }, status=status.HTTP_201_CREATED)
+        
+        return Response({
+            "status": 400,
+            "success": False,
+            "message": "Invalid data",
+            "data": serializer.data
+        }, status=status.HTTP_400_BAD_REQUEST)
     
     
-@api_view(['GET'])
+@api_view(['GET','PUT','DELETE'])
 def blog_detail(request, pk):
-    if request.method == 'GET':
-        blog = get_object_or_404(Blog, pk=pk)
-        serializer = BlogDetailSerializer(blog)
-        return Response(serializer.data)
+    blog = get_object_or_404(Blog, pk=pk)
 
-@api_view(['POST'])
+    if request.method == 'GET':
+        serializer = BlogDetailSerializer(blog)
+        return Response({
+            "status": 200,
+            "success": True,
+            "message": "The blog detail is shown successfully",
+            "data": serializer.data
+        }, status= status.HTTP_200_OK)
+    
+    # for admin control
+    if not request.user.is_authenticated or not request.user.is_staff:
+        return Response({
+            "status": 403,
+            "success": False,
+            "message": "You are not authorized to perform this action",
+            "data": []
+        }, status = status.HTTP_403_FORBIDDEN)
+        
+    # for update or patch
+    if request.method in ['PUT','PATCH']:
+        serializer = BlogListSerializer(
+            blog,
+            data = request.data,
+            partial = (request.method == 'PATCH')
+        )
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                "status": 200,
+                "success": True,
+                "message": "Blog updated successfully",
+                "data": serializer.data
+            })
+        
+        return Response({
+            "status": 400,
+            "success": False,
+            "message": "Invalid data",
+            "data": serializer.data
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # for deleting the blogs
+    if request.method == 'DELETE':
+        blog.delete()
+        return Response({
+            "status": 200,
+            "success": True,
+            "message": "Blog deleted successfully",
+            "data": []
+        })
+        
+        
+
+
+@api_view(['GET','POST'])
 def create_contact(request):
     serializer = ContactMessageSerializer(data = request.data)
+
+    # if request.method == 'GET':
+    #     contacts = get_object_or_404(pk = pk)
+    #     serializer = ContactMessageSerializer(contacts)
+    #     return Response({
+    #         "status": 200,
+    #         "success": True,
+    #         "message": "The list of the contacted form is shown successfully",
+    #         "data": serializer.data
+    #     })
+
     if serializer.is_valid():
         serializer.save()
-        return Response(
-            {"message": "The request was submitted successfully."},
-            status = status.HTTP_201_CREATED
-        )
+        return Response({
+            "status": 201,
+            "success": True,
+            "message": "The request was submitted successfully.",
+            "data": serializer.data
+            },status = status.HTTP_201_CREATED)
+    
     return Response(serializer.errors, status = status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET', 'POST'])
@@ -150,7 +250,7 @@ def internship_list(request):
             "data": serializer.data
         }, status=status.HTTP_400_BAD_REQUEST)
     
-@api_view(['GET','PUT','DELETE'])
+@api_view(['GET','PUT','PATCH','DELETE'])
 def internship_detail(request, pk):
     internship = get_object_or_404(Internship, pk=pk)
 
