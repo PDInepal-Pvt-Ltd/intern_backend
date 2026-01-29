@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from .models import Subscriber, Blog, ContactMessage, Internship, InternshipApplication
+from rest_framework.validators import UniqueTogetherValidator
 import re
+
 
 class SubscriberSerializer(serializers.ModelSerializer):
     class Meta:
@@ -64,6 +66,14 @@ class InternshipAppSerializer(serializers.ModelSerializer):
     class Meta:
         model = InternshipApplication
         fields = "__all__"
+
+        validators = [
+            UniqueTogetherValidator(
+                queryset = InternshipApplication.objects.all(),
+                fields = ['email', 'internship_title'],
+                message = "You have already applied for this internship position."
+            )
+        ]
 
     def validate_contact_number(self, value):
         cleaned = value.replace(" ", "")

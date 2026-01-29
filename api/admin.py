@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Blog, Subscriber, ContactMessage, Internship
+from .models import Blog, Subscriber, ContactMessage, Internship, InternshipApplication
 
 
 @admin.register(Blog)
@@ -28,3 +28,10 @@ class Internship(admin.ModelAdmin):
     list_display = ['title', 'total_seats', 'is_open']
     list_filter = ['is_open', 'title']
     search_fields = ['title']
+
+@admin.register(InternshipApplication)
+class InternshipApplication(admin.ModelAdmin):
+    list_display = ['full_name', 'contact_number', 'email','internship_title', 'dob', 'gender', 'cv_file']
+    list_filter = ['email', 'internship_title']
+    search_fields = ['internship_title']
+

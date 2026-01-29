@@ -1,7 +1,7 @@
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from rest_framework import status
-from api.serializers import SubscriberSerializer, BlogSerializer, ContactMessageSerializer, InternshipSerializer
+from api.serializers import SubscriberSerializer, BlogSerializer, ContactMessageSerializer, InternshipSerializer, InternshipAppSerializer
 from django.http import JsonResponse
 from django.core.exceptions import ValidationError
 from django.core.mail import EmailMultiAlternatives
@@ -188,7 +188,7 @@ def blog_detail(request, pk):
         }, status=status.HTTP_200_OK)
 
 
-@api_view(['GET', 'POST'])
+@api_view(['POST'])
 def create_contact(request):
     serializer = ContactMessageSerializer(data=request.data)
 
@@ -211,7 +211,11 @@ def create_contact(request):
             "data": serializer.data
         }, status=status.HTTP_201_CREATED)
 
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    return Response({
+        "success": False,
+        "message": "Validation failed.",
+        "errors": serializer.errors
+    }, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['GET', 'POST'])
@@ -308,3 +312,21 @@ def internship_detail(request, pk):
             "message": "Internship deleted successfully",
             "data": []
         }, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+def create_internship_application(request):
+    serializer = InternshipAppSerializer(data = request.data)
+    if serializer.is_valid():
+        serializer.save()
+        return Response({
+            "status": 201,
+            "success": True,
+            "message": "Your Internship application was successfully submitted.",
+            "data": serializer.data
+        }, status= status.HTTP_201_CREATED)
+    
+    return Response({
+        "success": False,
+        "message": "Validation failed.",
+        "errors": serializer.errors
+    }, status=status.HTTP_400_BAD_REQUEST)

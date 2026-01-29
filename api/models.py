@@ -134,6 +134,14 @@ class InternshipApplication(models.Model):
 
     applied_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields = ['email', 'internship_title'],
+                name = 'unique_application_per_email'
+            )
+        ]
+
     def __str__(self):
         return f"{self.full_name} - {self.internship_title}"
 

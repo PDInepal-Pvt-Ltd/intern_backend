@@ -1,0 +1,11 @@
+[33mea6bbe5[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m Made the views and urls for the InternshipApplication form
+[33m959d380[m[33m ([m[1;31morigin/main[m[33m, [m[1;31mcompany/main[m[33m)[m Added the models and the serializers for the internshipApplication
+[33mff0fb10[m Made the internship programs and the blogs full crud
+[33mff7d81c[m Added the internship programs
+[33m3899d91[m Resolve README merge conflict
+[33m1ec45ad[m gitnore updated
+[33mff472ba[m Fixed some bugs while sending the email subscribe api
+[33mc38572c[m Update README.md
+[33md111ef0[m Resolve README merge conflict
+[33m18e14d0[m Update README.md
+[33mcb570b2[m Initial commit with clean .env setup
