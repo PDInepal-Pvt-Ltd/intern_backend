@@ -74,7 +74,11 @@ class InternshipAppSerializer(serializers.ModelSerializer):
                 message = "You have already applied for this internship position."
             )
         ]
+        extra_kwargs = {
+            'cv_file': {'required': True}
+        }
 
     def validate_contact_number(self, value):
-        cleaned = value.replace(" ", "")
-        return cleaned
+        if value:
+            return value.replace(" ", "")
+        return value

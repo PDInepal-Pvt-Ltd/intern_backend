@@ -1,5 +1,5 @@
 from rest_framework.response import Response
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, parser_classes
 from rest_framework import status
 from api.serializers import SubscriberSerializer, BlogSerializer, ContactMessageSerializer, InternshipSerializer, InternshipAppSerializer
 from django.http import JsonResponse
@@ -12,7 +12,7 @@ from django.shortcuts import render, get_object_or_404
 from .models import Subscriber, Blog, ContactMessage, Internship
 import json
 from django.views.decorators.csrf import csrf_exempt
-
+from djangorestframework_camel_case.parser import CamelCaseMultiPartParser, CamelCaseFormParser
 
 def PravidhiView(request):
     return render(request, 'index.html')
@@ -314,8 +314,11 @@ def internship_detail(request, pk):
         }, status=status.HTTP_200_OK)
 
 @api_view(['POST'])
+@parser_classes([CamelCaseMultiPartParser, CamelCaseFormParser])
 def create_internship_application(request):
-    serializer = InternshipAppSerializer(data = request.data)
+    
+    
+    serializer = InternshipAppSerializer(data=request.data, context={'request': request})
     if serializer.is_valid():
         serializer.save()
         return Response({
@@ -330,3 +333,4 @@ def create_internship_application(request):
         "message": "Validation failed.",
         "errors": serializer.errors
     }, status=status.HTTP_400_BAD_REQUEST)
+
