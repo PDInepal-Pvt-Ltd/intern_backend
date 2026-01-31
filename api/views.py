@@ -16,7 +16,7 @@ from djangorestframework_camel_case.parser import CamelCaseMultiPartParser, Came
 from django.db import transaction
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User  
-from rest_framework import status
+from .permissions import IsIntern
 import json
 
 def PravidhiView(request):
@@ -423,7 +423,7 @@ def setup_password(request):
     }, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsIntern])
 def my_application_status(request):
     try: 
         application = request.user.application
