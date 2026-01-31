@@ -332,20 +332,32 @@ def create_internship_application(request):
                 email = serializer.validated_data['email']
                 full_name = serializer.validated_data['full_name']
 
-                user, created = User.objects.get_or_create(
-                    email=email,
-                    defaults={
-                        'username': email,
-                        'first_name': full_name,
-                        "is_active": False,
-                    }
+                user = User.objects.filter(email=email).first()
+
+                internship = get_object_or_404(
+                    Internship,
+                    id=serializer.validated_data['internship'].id
                 )
 
-                if not created and InternshipApplication.objects.filter(user=user).exists():
+                if internship.available_seats <= 0:
+                    return Response({
+                        "success": False,
+                        "message": "This internship is full."
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                if user and hasattr(user, 'application'):
                     return Response({
                         "success": False,
                         "message": "You have already applied with this email."
                     }, status=status.HTTP_400_BAD_REQUEST)
+
+                if not user:
+                    user = User.objects.create_user(
+                        username=email,
+                        email=email,
+                        first_name=full_name,
+                        is_active=False
+                    )
 
                 # Saves the application and links it to the newly created user
                 application = serializer.save(user=user)
