@@ -1,7 +1,7 @@
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, parser_classes, permission_classes
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from api.serializers import SubscriberSerializer, BlogSerializer, ContactMessageSerializer, InternshipSerializer, InternshipAppSerializer, PasswordSetupSerializer
 from django.http import JsonResponse
 from django.core.exceptions import ValidationError
@@ -421,3 +421,44 @@ def setup_password(request):
         "message": "Validation Failed",
         "errors": serializer.errors
     }, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def my_application_status(request):
+    try: 
+        application = request.user.application
+        data = {
+            "internship": application.internship.title,
+            "status": application.status,
+            "applied_at": application.applied_at,
+        }
+        return Response({
+            "status": 200,
+            "success": True,
+            "message": "Your application status fetched successfully",
+            "data": data
+        }, status= status.HTTP_200_OK)
+    
+    except InternshipApplication.DoesNotExist:
+        return Response({
+            "status": 404,
+            "success": False,
+            "message": "You haven't applied for any internship yet.",
+            "data": {}
+        }, status=status.HTTP_404_NOT_FOUND)
+    
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_available_internship(request):
+    application = getattr(request.user, 'application', None)
+    queryset = Internship.objects.filter(status='open')
+
+    if application:
+        queryset = queryset.exclude(id = application.internship_id)
+
+    serializer = InternshipSerializer(queryset, many=True)
+    return Response({
+        "status": 200,
+        "success": True,
+        "data": serializer.data,
+    },status=status.HTTP_200_OK)
