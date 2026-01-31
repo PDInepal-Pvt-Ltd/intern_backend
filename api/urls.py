@@ -9,5 +9,6 @@ urlpatterns = [
     path('contactmessage/', views.create_contact),
     path('internship/', views.internship_list),
     path('internship/<int:pk>/', views.internship_detail),
-    path('internship/application/', views.create_internship_application)
+    path('internship/application/', views.create_internship_application),
+    path('setup-password', views.setup_password, name='setup-password')
 ]

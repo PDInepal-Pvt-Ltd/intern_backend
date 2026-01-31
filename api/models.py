@@ -2,6 +2,7 @@ from django.db import models
 from django.utils import timezone
 from django.core.validators import RegexValidator, FileExtensionValidator
 from datetime import timedelta
+from django.conf import settings
 from django.core.exceptions import ValidationError
 import re
 # Create your models here.
@@ -39,7 +40,7 @@ class ContactMessage(models.Model):
         ('new', 'New'),
         ('read', 'Read'),
         ('replied', 'Replied'),
-        ('archived', 'Archived')
+        ('archived', 'Archived'),
     )
 
     phone_regex = RegexValidator(
@@ -69,12 +70,21 @@ class ContactMessage(models.Model):
 
 
 class Internship(models.Model):
+    STATUS_CHOICES = (
+        ('open', 'Open'),
+        ('closed', 'Closed'),
+    )
     title = models.CharField(max_length=50)
     description = models.TextField()
     image = models.ImageField(
         upload_to="internimages",
         blank=True,
         null=True
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='open'
     )
     total_seats = models.IntegerField()
     is_open = models.BooleanField(default=True)
@@ -85,21 +95,29 @@ class Internship(models.Model):
 
     @property
     def available_seats(self):
-        # If i had applications, i would subtract them here
-        # For now,let's just return total_seats
-        return self.total_seats
+        # Counts applications that have the status 'accepted' and the logic is done
+        accepted_count = self.applications.filter(status='accepted').count()
+        return max(0, self.total_seats - accepted_count)
 
 def validate_file_size(value):
         filesize  = value.size
-        if filesize > 5 * 1024 *1024:
+        if filesize > 10 * 1024 *1024:
             raise ValidationError("File too large. File size cannot exceed 5 MiB.")
         return value
 
 class InternshipApplication(models.Model):
+    STATUS_CHOICES = (
+        ('submitted', 'Submitted'),
+        ('reviewing', 'Reviewing'),
+        ('interview', 'Interview'),
+        ('accepted', 'Accepted'),
+        ('rejected', 'Rejected'),
+    )
+
     GENDER_CHOICES = (
         ('male', 'Male'),
         ('female', 'Female'),
-        ('other', 'Other')
+        ('other', 'Other'),
     )
 
     contact_regex = RegexValidator(
@@ -122,8 +140,27 @@ class InternshipApplication(models.Model):
         default='male'
     )
     address = models.CharField(max_length=255)
-    internship_title = models.CharField(max_length=100)
+
+    internship = models.ForeignKey(
+        Internship,
+        on_delete = models.CASCADE,
+        related_name = 'applications'
+    )
     
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='application'
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='submitted'
+    )
+
     cv_file = models.FileField(
         upload_to='cvs/',
         validators=[
@@ -137,11 +174,11 @@ class InternshipApplication(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields = ['email', 'internship_title'],
+                fields = ['email', 'internship'],
                 name = 'unique_application_per_email'
             )
         ]
 
     def __str__(self):
-        return f"{self.full_name} - {self.internship_title}"
+        return f"{self.full_name} - {self.internship}"
 

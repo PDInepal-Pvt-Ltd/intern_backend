@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Subscriber, Blog, ContactMessage, Internship, InternshipApplication
 from rest_framework.validators import UniqueTogetherValidator
+from django.contrib.auth.password_validation import validate_password
 import re
 
 
@@ -57,8 +58,7 @@ class InternshipSerializer(serializers.ModelSerializer):
             'description',
             'image',
             'total_seats',
-            'is_open',
-            'created_at',
+            'available_seats'
         ]
         read_only_fields = ['id', 'created_by']
 
@@ -66,11 +66,12 @@ class InternshipAppSerializer(serializers.ModelSerializer):
     class Meta:
         model = InternshipApplication
         fields = "__all__"
+        read_only_fields = ['user', 'status']
 
         validators = [
             UniqueTogetherValidator(
                 queryset = InternshipApplication.objects.all(),
-                fields = ['email', 'internship_title'],
+                fields = ['email', 'internship'],
                 message = "You have already applied for this internship position."
             )
         ]
@@ -82,3 +83,20 @@ class InternshipAppSerializer(serializers.ModelSerializer):
         if value:
             return value.replace(" ", "")
         return value
+    
+class PasswordSetupSerializer(serializers.ModelSerializer):
+    user_id = serializers.IntegerField()
+    password = serializers.CharField(
+        write_only = True,
+        required = True,
+        validators = [validate_password]
+    )
+    confirm_password = serializers.CharField(
+        write_only = True,
+        required = True
+    )
+
+    def validate(self, attrs):
+        if attrs['password'] != attrs['confirm_password']:
+            raise serializers.ValidationError({"password": "Passwords fields didn't match."})
+        return attrs

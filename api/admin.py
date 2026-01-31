@@ -31,7 +31,7 @@ class Internship(admin.ModelAdmin):
 
 @admin.register(InternshipApplication)
 class InternshipApplication(admin.ModelAdmin):
-    list_display = ['full_name', 'contact_number', 'email','internship_title', 'dob', 'gender', 'cv_file']
-    list_filter = ['email', 'internship_title']
-    search_fields = ['internship_title']
+    list_display = ['full_name', 'contact_number', 'email','internship', 'dob', 'gender', 'cv_file']
+    list_filter = ['email', 'internship']
+    search_fields = ['internship']
 

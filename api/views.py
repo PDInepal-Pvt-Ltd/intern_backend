@@ -1,7 +1,8 @@
 from rest_framework.response import Response
-from rest_framework.decorators import api_view, parser_classes
+from rest_framework.decorators import api_view, parser_classes, permission_classes
 from rest_framework import status
-from api.serializers import SubscriberSerializer, BlogSerializer, ContactMessageSerializer, InternshipSerializer, InternshipAppSerializer
+from rest_framework.permissions import AllowAny
+from api.serializers import SubscriberSerializer, BlogSerializer, ContactMessageSerializer, InternshipSerializer, InternshipAppSerializer, PasswordSetupSerializer
 from django.http import JsonResponse
 from django.core.exceptions import ValidationError
 from django.core.mail import EmailMultiAlternatives
@@ -9,10 +10,14 @@ from django.core.validators import validate_email
 from django.template.loader import render_to_string
 from django.conf import settings
 from django.shortcuts import render, get_object_or_404
-from .models import Subscriber, Blog, ContactMessage, Internship
-import json
+from .models import Subscriber, Blog, ContactMessage, Internship, InternshipApplication
 from django.views.decorators.csrf import csrf_exempt
 from djangorestframework_camel_case.parser import CamelCaseMultiPartParser, CamelCaseFormParser
+from django.db import transaction
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import User  
+from rest_framework import status
+import json
 
 def PravidhiView(request):
     return render(request, 'index.html')
@@ -130,6 +135,7 @@ def blog_list(request):
             "message": "Invalid data",
             "data": serializer.data
         }, status=status.HTTP_400_BAD_REQUEST)
+
 
 @api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
 def blog_detail(request, pk):
@@ -313,24 +319,93 @@ def internship_detail(request, pk):
             "data": []
         }, status=status.HTTP_200_OK)
 
+
 @api_view(['POST'])
 @parser_classes([CamelCaseMultiPartParser, CamelCaseFormParser])
 def create_internship_application(request):
-    
-    
-    serializer = InternshipAppSerializer(data=request.data, context={'request': request})
+
+    serializer = InternshipAppSerializer(
+        data=request.data, context={'request': request})
     if serializer.is_valid():
-        serializer.save()
-        return Response({
-            "status": 201,
-            "success": True,
-            "message": "Your Internship application was successfully submitted.",
-            "data": serializer.data
-        }, status= status.HTTP_201_CREATED)
-    
+        try:
+            with transaction.atomic():
+                email = serializer.validated_data['email']
+                full_name = serializer.validated_data['full_name']
+
+                user, created = User.objects.get_or_create(
+                    email=email,
+                    defaults={
+                        'username': email,
+                        'first_name': full_name,
+                        "is_active": False,
+                    }
+                )
+
+                if not created and InternshipApplication.objects.filter(user=user).exists():
+                    return Response({
+                        "success": False,
+                        "message": "You have already applied with this email."
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+                # Saves the application and links it to the newly created user
+                application = serializer.save(user=user)
+
+                return Response({
+                    "status": 201,
+                    "success": True,
+                    "message": "Application submitted! Now, please set your password.",
+                    "data": {
+                        "email": user.email,
+                        "user_id": user.id,
+                        "requires_password_setup": True  # Nirdosh will use this to redirect
+                    }
+                }, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            return Response({
+                "success": False,
+                "message": f"An error occurred: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     return Response({
         "success": False,
         "message": "Validation failed.",
         "errors": serializer.errors
     }, status=status.HTTP_400_BAD_REQUEST)
 
+User = get_user_model()
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def setup_password(request):
+    serializer = PasswordSetupSerializer(data=request.data)
+    if serializer.is_valid():
+        user_id = serializer.validated_data['user_id']
+        password = serializer.validated_data['password']
+
+        user = get_object_or_404(User, id=user_id)
+        # to check whether the user has the password to prevent overwriting
+        if user.has_usable_password():
+            return Response({
+                'success': False,
+                "message": "Password has already been set for this account."
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # now setting password and activating user
+        user.set_password(password)
+        user.is_active=True
+        user.save()
+        return Response({
+            "status": 200,
+            "success": True,
+            "message": "Password is set successfully! You can login now.",
+            "data": {
+                "email": user.email
+            }
+        }, status=status.HTTP_200_OK)
+    
+    return Response({
+        "status": 400,
+        "success": False,
+        "message": "Validation Failed",
+        "errors": serializer.errors
+    }, status=status.HTTP_400_BAD_REQUEST)
