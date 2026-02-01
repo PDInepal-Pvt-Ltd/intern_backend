@@ -2,7 +2,12 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view, parser_classes, permission_classes
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from api.serializers import SubscriberSerializer, BlogSerializer, ContactMessageSerializer, InternshipSerializer, InternshipAppSerializer, PasswordSetupSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
+from api.serializers import (
+    SubscriberSerializer, BlogSerializer, ContactMessageSerializer, 
+    InternshipSerializer, InternshipAppSerializer, PasswordSetupSerializer, 
+    TaskSerializer, TaskSubmissionSerializer, TaskCreateSerializer, MyTokenObtainPairSerializer
+    )
 from django.http import JsonResponse
 from django.core.exceptions import ValidationError
 from django.core.mail import EmailMultiAlternatives
@@ -10,14 +15,20 @@ from django.core.validators import validate_email
 from django.template.loader import render_to_string
 from django.conf import settings
 from django.shortcuts import render, get_object_or_404
-from .models import Subscriber, Blog, ContactMessage, Internship, InternshipApplication
+from .models import (
+    Subscriber, Blog, ContactMessage, 
+    Internship, InternshipApplication, Task
+    )
 from django.views.decorators.csrf import csrf_exempt
-from djangorestframework_camel_case.parser import CamelCaseMultiPartParser, CamelCaseFormParser
+from djangorestframework_camel_case.parser import CamelCaseMultiPartParser, CamelCaseFormParser, CamelCaseJSONParser
 from django.db import transaction
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User  
-from .permissions import IsIntern
+from .permissions import IsIntern, IsAcceptedIntern, IsOwner, IsStaffOrAdmin
 import json
+
+class MyTokenObtainPairView(TokenObtainPairView):
+    serializer_class = MyTokenObtainPairSerializer
 
 def PravidhiView(request):
     return render(request, 'index.html')
@@ -111,30 +122,14 @@ def blog_list(request):
         }, status=status.HTTP_200_OK)
 
     if request.method == 'POST':
-        if not request.user.is_authenticated or not request.user.is_staff:
-            return Response({
-                "status": 403,
-                "success": False,
-                "message": "You are not authorized to perform this action",
-                "data": []
-            }, status=status.HTTP_403_FORBIDDEN)
-
+        if not (request.user.is_authenticated and request.user.is_staff):
+            return Response({"detail": "Admin access required"}, status=403)
+        
         serializer = BlogSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response({
-                "status": 201,
-                "success": True,
-                "message": "The blog was created successfully",
-                "data": serializer.data
-            }, status=status.HTTP_201_CREATED)
-
-        return Response({
-            "status": 400,
-            "success": False,
-            "message": "Invalid data",
-            "data": serializer.data
-        }, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"success": True, "data": serializer.data}, status=201)
+        return Response(serializer.errors, status=400)
 
 
 @api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
@@ -176,12 +171,7 @@ def blog_detail(request, pk):
                 "data": serializer.data
             }, status=status.HTTP_200_OK)
 
-        return Response({
-            "status": 400,
-            "success": False,
-            "message": "Invalid data",
-            "data": serializer.data
-        }, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=400)
 
     # for deleting the blogs
     if request.method == 'DELETE':
@@ -307,7 +297,7 @@ def internship_detail(request, pk):
             "success": False,
             "message": "Invalid data",
             "data": serializer.errors
-        }, status=status.HTTP_400_BAD_rEQUEST)
+        }, status=status.HTTP_400_BAD_REQUEST)
 
     # delete ko lagi
     if request.method == 'DELETE':
@@ -385,42 +375,28 @@ def create_internship_application(request):
         "errors": serializer.errors
     }, status=status.HTTP_400_BAD_REQUEST)
 
-User = get_user_model()
 @api_view(['POST'])
 @permission_classes([AllowAny])
+@parser_classes([CamelCaseJSONParser, CamelCaseFormParser, CamelCaseMultiPartParser])
 def setup_password(request):
+    print("DEBUG DATA RECEIVED:", request.data)
     serializer = PasswordSetupSerializer(data=request.data)
     if serializer.is_valid():
-        user_id = serializer.validated_data['user_id']
+        email = serializer.validated_data['email']
         password = serializer.validated_data['password']
 
-        user = get_object_or_404(User, id=user_id)
-        # to check whether the user has the password to prevent overwriting
-        if user.has_usable_password():
-            return Response({
-                'success': False,
-                "message": "Password has already been set for this account."
-            }, status=status.HTTP_400_BAD_REQUEST)
+        # Use __iexact to be safe with Capital Letters
+        user = get_object_or_404(User, email__iexact=email)
         
-        # now setting password and activating user
+        if user.has_usable_password():
+            return Response({"success": False, "message": "Password already set."}, status=400)
+        
         user.set_password(password)
-        user.is_active=True
+        user.is_active = True
         user.save()
-        return Response({
-            "status": 200,
-            "success": True,
-            "message": "Password is set successfully! You can login now.",
-            "data": {
-                "email": user.email
-            }
-        }, status=status.HTTP_200_OK)
-    
-    return Response({
-        "status": 400,
-        "success": False,
-        "message": "Validation Failed",
-        "errors": serializer.errors
-    }, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"success": True, "message": "Password set successfully!"})
+    print("SERIALIZER ERRORS:", serializer.errors) 
+    return Response(serializer.errors, status=400)
 
 @api_view(['GET'])
 @permission_classes([IsIntern])
@@ -451,10 +427,7 @@ def my_application_status(request):
 @permission_classes([IsAuthenticated])
 def get_available_internship(request):
     application = getattr(request.user, 'application', None)
-    queryset = Internship.objects.filter(status='open')
-
-    if application:
-        queryset = queryset.exclude(id = application.internship_id)
+    queryset = Internship.objects.filter(status='open').exclude(id=application.internship_id)
 
     serializer = InternshipSerializer(queryset, many=True)
     return Response({
@@ -462,3 +435,72 @@ def get_available_internship(request):
         "success": True,
         "data": serializer.data,
     },status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@permission_classes([IsAcceptedIntern])
+def intern_task_list(request):
+    # Intern views their own assigned tasks
+    tasks = Task.objects.filter(assigned_to=request.user)
+    serializer = TaskSerializer(tasks, many=True)
+    return Response({
+        "success": True,
+        "data": serializer.data
+    })
+
+@api_view(['PATCH'])
+@permission_classes([IsAcceptedIntern, IsOwner])
+def intern_submit_task(request, pk):
+    # Intern submits a link for a specific task.
+    task = get_object_or_404(Task, pk=pk, assigned_to=request.user)
+    
+    # Checking to see if already submitted (Optional logic)
+    if task.status == 'completed' and task.submission_link:
+         return Response({"message": "Task already submitted."}, status=400)
+
+    serializer = TaskSubmissionSerializer(task, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response({
+            "success": True,
+            "message": "Task submitted successfully.",
+            "data": serializer.data
+        })
+    return Response(serializer.errors, status=400)
+
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([IsStaffOrAdmin])
+def admin_assign_task(request):
+    """Admin assigns a task to an accepted intern."""
+    serializer = TaskCreateSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save(assigned_by=request.user) # Set current admin as creator
+        return Response({
+            "success": True,
+            "message": "Task assigned successfully.",
+            "data": serializer.data
+        }, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=400)
+
+@api_view(['GET'])
+@permission_classes([IsStaffOrAdmin])
+def admin_view_all_tasks(request):
+    """Admin views all tasks in the system."""
+    tasks = Task.objects.all()
+    serializer = TaskSerializer(tasks, many=True)
+    return Response(serializer.data)
+
+# @api_view(['PATCH'])
+# @permission_classes([IsStaffOrAdmin])
+# def admin_review_task(request, pk):
+#     """Admin provides feedback and updates status."""
+#     task = get_object_or_404(Task, pk=pk)
+#     serializer = TaskReviewSerializer(task, data=request.data, partial=True)
+#     if serializer.is_valid():
+#         serializer.save()
+#         return Response({
+#             "success": True,
+#             "message": "Feedback updated.",
+#             "data": serializer.data
+#         })
+#     return Response(serializer.errors, status=400)

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Blog, Subscriber, ContactMessage, Internship, InternshipApplication
+from .models import Blog, Subscriber, ContactMessage, Internship, InternshipApplication, Task
 
 
 @admin.register(Blog)
@@ -23,15 +23,16 @@ class ContactMessage(admin.ModelAdmin):
     readonly_fields = ['created_at']
 
 
-@admin.register(Internship)
-class Internship(admin.ModelAdmin):
-    list_display = ['title', 'total_seats', 'is_open']
-    list_filter = ['is_open', 'title']
-    search_fields = ['title']
-
 @admin.register(InternshipApplication)
-class InternshipApplication(admin.ModelAdmin):
-    list_display = ['full_name', 'contact_number', 'email','internship', 'dob', 'gender', 'cv_file']
-    list_filter = ['email', 'internship']
-    search_fields = ['internship']
+class InternshipApplicationAdmin(admin.ModelAdmin):
+    # This makes the admin list view very useful
+    list_display = ('full_name', 'email', 'internship', 'status', 'applied_at')
+    list_filter = ('status', 'internship')
+    search_fields = ('full_name', 'email')
+    list_editable = ('status',) # Allows you to change status directly from the list!
+
+# Register the rest so you can manage them
+admin.site.register(Internship)
+admin.site.register(Task)
+
 

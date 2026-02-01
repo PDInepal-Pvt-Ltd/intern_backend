@@ -1,8 +1,13 @@
 from rest_framework import serializers
-from .models import Subscriber, Blog, ContactMessage, Internship, InternshipApplication
+from .models import Subscriber, Blog, ContactMessage, Internship, InternshipApplication, Task
 from rest_framework.validators import UniqueTogetherValidator
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth.password_validation import validate_password
 import re
+from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError as DjangoValidationError
+
+user = get_user_model()
 
 
 class SubscriberSerializer(serializers.ModelSerializer):
@@ -10,13 +15,16 @@ class SubscriberSerializer(serializers.ModelSerializer):
         model = Subscriber
         fields = "__all__"
 
+
 class BlogSerializer(serializers.ModelSerializer):
     class Meta:
         model = Blog
         fields = "__all__"
 
+
 class ContactMessageSerializer(serializers.ModelSerializer):
-    phone = serializers.CharField(required = True)
+    phone = serializers.CharField(required=True)
+
     class Meta:
         model = ContactMessage
         fields = (
@@ -40,7 +48,7 @@ class ContactMessageSerializer(serializers.ModelSerializer):
                 "Phone number must start with +977 and must be of 10 digits."
             )
         return value
-    
+
     def validate_message(self, value):
         if len(value.strip()) < 10:
             raise serializers.ValidationError(
@@ -48,8 +56,9 @@ class ContactMessageSerializer(serializers.ModelSerializer):
             )
         return value
 
+
 class InternshipSerializer(serializers.ModelSerializer):
-    
+
     class Meta:
         model = Internship
         fields = [
@@ -62,6 +71,7 @@ class InternshipSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'created_by']
 
+
 class InternshipAppSerializer(serializers.ModelSerializer):
     class Meta:
         model = InternshipApplication
@@ -70,9 +80,9 @@ class InternshipAppSerializer(serializers.ModelSerializer):
 
         validators = [
             UniqueTogetherValidator(
-                queryset = InternshipApplication.objects.all(),
-                fields = ['email', 'internship'],
-                message = "You have already applied for this internship position."
+                queryset=InternshipApplication.objects.all(),
+                fields=['email', 'internship'],
+                message="You have already applied for this internship position."
             )
         ]
         extra_kwargs = {
@@ -83,20 +93,116 @@ class InternshipAppSerializer(serializers.ModelSerializer):
         if value:
             return value.replace(" ", "")
         return value
-    
-class PasswordSetupSerializer(serializers.ModelSerializer):
-    user_id = serializers.IntegerField()
-    password = serializers.CharField(
-        write_only = True,
-        required = True,
-        validators = [validate_password]
-    )
-    confirm_password = serializers.CharField(
-        write_only = True,
-        required = True
-    )
+
+
+class PasswordSetupSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
+    confirm_password = serializers.CharField(write_only=True)
 
     def validate(self, attrs):
-        if attrs['password'] != attrs['confirm_password']:
-            raise serializers.ValidationError({"password": "Passwords fields didn't match."})
+        password = attrs.get('password')
+        confirm = attrs.get('confirm_password')
+
+        if not password:
+            raise serializers.ValidationError({"password": "This field is required."})
+        if not confirm:
+            raise serializers.ValidationError({"confirm_password": "This field is required."})
+
+        if password != confirm:
+            raise serializers.ValidationError({"password": "Passwords do not match."})
+
+        try:
+            validate_password(password)
+        except DjangoValidationError as e:
+            raise serializers.ValidationError({"password": e.messages})
+
         return attrs
+
+class TaskSerializer(serializers.ModelSerializer):
+    assigned_to_email = serializers.EmailField(
+        source='assigned_to.email', read_only=True)
+    assigned_by_name = serializers.CharField(
+        source='assigned_by.first_name', read_only=True)
+
+    class Meta:
+        model = Task
+        fields = [
+            'id', 'title', 'description', 'status', 'due_date',
+            'submission_link', 'admin_feedback', 'assigned_to_email',
+            'assigned_by_name', 'created_at'
+        ]
+
+class TaskCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Task
+        fields = ['title', 'description', 'assigned_to', 'due_date']
+
+    def validate_assigned_to(self, value):
+        try:
+            app = value.application
+            if app.status != 'accepted':
+                raise serializers.ValidationError(
+                    "This intern has not been 'accepted' yet.")
+
+        except AttributeError:
+            raise serializers.ValidationError(
+                "The selected user is not intern.")
+        return value
+
+
+class TaskSubmissionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Task
+        fields = ['submission_link']
+
+    def update(self, instance, validated_data):
+        instance.submission_link = validated_data.get(
+            'submission_link', instance.submission_link)
+        instance.status = 'completed'
+        instance.save()
+        return instance
+
+
+class TaskSerializer(serializers.ModelSerializer):
+    assigned_to_email = serializers.EmailField(
+        source='assigned_to.email', read_only=True)
+    assigned_by_name = serializers.CharField(
+        source='assigned_by.first_name', read_only=True)
+
+    class Meta:
+        model = Task
+        fields = [
+            'id', 'title', 'description', 'status', 'due_date',
+            'submission_link', 'admin_feedback', 'assigned_to_email',
+            'assigned_by_name', 'created_at'
+        ]
+class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    
+    email = serializers.EmailField()
+    password = serializers.CharField(style={'input_type': 'password'})
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        self.fields.pop('username', None)
+
+    def validate(self, attrs):
+        
+        attrs['username'] = attrs.get('email')
+        if self.user.is_superuser:
+            role = "admin"
+        elif self.user.is_staff:
+            role = "staff"
+        elif hasattr(user, 'application'):
+            role = "intern"
+        else:
+            role = "user"
+        
+        data = super().validate(attrs)
+        
+        
+        data['role'] = role 
+        data['full_name'] = self.user.first_name
+        data['email'] = self.user.email
+        return data
