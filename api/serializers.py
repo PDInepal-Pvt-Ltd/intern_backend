@@ -137,7 +137,7 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
             role = "admin"
         elif self.user.is_staff:
             role = "staff"
-        elif hasattr(user, 'application'):
+        elif self.user.applications.exists():
             role = "intern"
         else:
             role = "user"
@@ -167,15 +167,13 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         fields = ['title', 'description', 'assigned_to', 'due_date']
 
     def validate_assigned_to(self, value):
-        try:
-            app = value.application
-            if app.status != 'accepted':
-                raise serializers.ValidationError(
-                    "This intern has not been 'accepted' yet.")
-
-        except AttributeError:
-            raise serializers.ValidationError(
-                "The selected user is not intern.")
+        app = value.applications.first()
+        if not app:
+            raise serializers.ValidationError("The selected user is not an intern.")
+        
+        if app.status != 'accepted':
+            raise serializers.ValidationError("This intern has not been 'accepted' yet.")
+            
         return value
 
 class AdminTaskSerializer(serializers.ModelSerializer):
@@ -209,11 +207,13 @@ class TaskUpdateSerializer(serializers.ModelSerializer):
         fields = ['title', 'description', 'assigned_to', 'due_date', 'status']
 
     def validate_assigned_to(self, value):
-        try:
-            if value.application.status != 'accepted':
-                raise serializers.ValidationError("This intern is not 'accepted'.")
-        except AttributeError:
-            raise serializers.ValidationError("Selected user is not an intern.")
+        app = value.applications.first()
+        if not app:
+            raise serializers.ValidationError("The selected user is not an intern.")
+        
+        if app.status != 'accepted':
+            raise serializers.ValidationError("This intern has not been 'accepted' yet.")
+            
         return value
 
 class TaskReviewSerializer(serializers.ModelSerializer):
