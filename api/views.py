@@ -548,7 +548,51 @@ def admin_user_manager(request):
 
     serializer = AdminUserListSerializer(users, many=True)
     return Response({
+        "status": 200,
         "success": True,
         "count": users.count(),
         "data": serializer.data
-    })
+    }, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@permission_classes([IsStaffOrAdmin])
+def admin_application_list(request):
+    apps = InternshipApplication.objects.select_related('user', 'internship').all().order_by('applied_at')
+    status_filter = request.query_params.get('status')
+    if status_filter:
+        apps = apps.filter(status=status_filter)
+
+    serializer = InternshipAppSerializer(apps, many=True)
+    return Response({
+        "status": 200,
+        "success": True,
+        "count": apps.count(),
+        "data": serializer.data
+    }, status= status.HTTP_200_OK)
+
+@api_view(['PATCH'])
+@permission_classes([IsStaffOrAdmin])
+def admin_update_application_status(request, pk):
+    application = get_object_or_404(InternshipApplication, pk=pk)
+    status_value = request.data.get('status')
+
+    if status_value not in dict(InternshipApplication.STATUS_CHOICES):
+        return Response({
+            "status": 400,
+            "success": False,
+            "message": "Invalid status choice. Must be 'accepted', 'rejected', etc.",
+            "data": None
+         }, status=status.HTTP_400_BAD_REQUEST)
+    
+    application.status = status_value
+    application.save()
+
+    return Response({
+        "status": 200,
+        "success": True,
+        "message": f"Application status successfully updated to {status_value}",
+        "data": {
+            "application_id": application.id,
+            "new_status": application.status
+        }    
+        }, status=status.HTTP_200_OK)
