@@ -6,7 +6,8 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from api.serializers import (
     SubscriberSerializer, BlogSerializer, ContactMessageSerializer, 
     InternshipSerializer, InternshipAppSerializer, PasswordSetupSerializer, 
-    TaskSerializer, TaskSubmissionSerializer, TaskCreateSerializer, MyTokenObtainPairSerializer
+    MyTokenObtainPairSerializer, TaskSerializer, TaskSubmissionSerializer, 
+    TaskCreateSerializer, TaskUpdateSerializer, TaskReviewSerializer
     )
 from django.http import JsonResponse
 from django.core.exceptions import ValidationError
@@ -490,17 +491,42 @@ def admin_view_all_tasks(request):
     serializer = TaskSerializer(tasks, many=True)
     return Response(serializer.data)
 
-# @api_view(['PATCH'])
-# @permission_classes([IsStaffOrAdmin])
-# def admin_review_task(request, pk):
-#     """Admin provides feedback and updates status."""
-#     task = get_object_or_404(Task, pk=pk)
-#     serializer = TaskReviewSerializer(task, data=request.data, partial=True)
-#     if serializer.is_valid():
-#         serializer.save()
-#         return Response({
-#             "success": True,
-#             "message": "Feedback updated.",
-#             "data": serializer.data
-#         })
-#     return Response(serializer.errors, status=400)
+@api_view(['PATCH', 'DELETE'])
+@permission_classes([IsStaffOrAdmin])
+def admin_edit_task(request, pk):
+    task = get_object_or_404(Task, pk = pk)
+    if request.method == 'DELETE':
+        task.delete()
+        return Response({
+            "status": 200,
+            "success": True,
+            "message": "Task deleted successfully.",
+            "data": []
+        }, status=status.HTTP_200_OK)
+    
+    serializer = TaskUpdateSerializer(task, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response({
+            "status": 200,
+            "success": True,
+            "message": "Task updated successfully.",
+            "data": serializer.data
+        }, status=status.HTTP_200_OK)
+    
+    return Response(serializer.errors, status=400)
+
+@api_view(['PATCH'])
+@permission_classes([IsStaffOrAdmin])
+def admin_review_task(request, pk):
+    task = get_object_or_404(Task, pk=pk)
+    serializer = TaskReviewSerializer(task, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response({
+            "status": 200,
+            "success": True,
+            "message": "Feedback updated.",
+            "data": serializer.data
+        }, status = status.HTTP_200_OK)
+    return Response(serializer.errors, status=400)

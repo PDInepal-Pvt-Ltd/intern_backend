@@ -27,5 +27,6 @@ urlpatterns = [
     path('intern/tasks/', views.intern_task_list),
     path('intern/tasks/<int:pk>/submit/', views.intern_submit_task),
     path('admin/tasks/assign/', views.admin_assign_task),
-    # path('admin/tasks/<int:pk>/review/', views.admin_review_task)
+    path('admin/tasks/<int:pk>/edit/', views.admin_edit_task, name = 'admin_edit_task'),
+    path('admin/tasks/<int:pk>/review/', views.admin_review_task, name= 'admin_review_task')
 ]
