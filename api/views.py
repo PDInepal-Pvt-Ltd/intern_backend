@@ -341,7 +341,6 @@ def create_internship_application(request):
                         first_name=full_name,
                         is_active=False
                     )
-
                 # Saves the application and links it to the newly created user
                 application = serializer.save(user=user)
 
@@ -377,8 +376,7 @@ def setup_password(request):
     if serializer.is_valid():
         email = serializer.validated_data['email']
         password = serializer.validated_data['password']
-
-        # Use __iexact to be safe with Capital Letters
+        # Used __iexact to be safe with Capital Letters
         user = get_object_or_404(User, email__iexact=email)
         
         if user.has_usable_password():
@@ -419,8 +417,11 @@ def my_application_status(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_available_internship(request):
-    application = getattr(request.user, 'application', None)
-    queryset = Internship.objects.filter(status='open').exclude(id=application.internship_id)
+    application = request.user.applications.first()
+    queryset = Internship.objects.filter(status='open')
+
+    if application:
+        queryset = queryset.exclude(id=application.internship_id)
 
     serializer = InternshipSerializer(queryset, many=True)
     return Response({
@@ -432,7 +433,6 @@ def get_available_internship(request):
 @api_view(['GET'])
 @permission_classes([IsAcceptedIntern])
 def intern_task_list(request):
-    # Intern views their own assigned tasks
     tasks = Task.objects.filter(assigned_to=request.user)
     serializer = TaskSerializer(tasks, many=True)
     return Response({
@@ -443,10 +443,8 @@ def intern_task_list(request):
 @api_view(['PATCH'])
 @permission_classes([IsAcceptedIntern, IsOwner])
 def intern_submit_task(request, pk):
-    # Intern submits a link for a specific task.
     task = get_object_or_404(Task, pk=pk, assigned_to=request.user)
     
-    # Checking to see if already submitted (Optional logic)
     if task.status == 'completed' and task.submission_link:
          return Response({"message": "Task already submitted."}, status=400)
 
@@ -464,10 +462,9 @@ def intern_submit_task(request, pk):
 @api_view(['POST'])
 @permission_classes([IsStaffOrAdmin])
 def admin_assign_task(request):
-    """Admin assigns a task to an accepted intern."""
     serializer = TaskCreateSerializer(data=request.data)
     if serializer.is_valid():
-        serializer.save(assigned_by=request.user) # Set current admin as creator
+        serializer.save(assigned_by=request.user) 
         return Response({
             "success": True,
             "message": "Task assigned successfully.",

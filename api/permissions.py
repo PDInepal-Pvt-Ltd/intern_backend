@@ -19,7 +19,6 @@ class IsIntern(permissions.BasePermission):
         )
     
 class IsOwner(permissions.BasePermission):
-
     # to make a user only accesses his only specific data records
     def has_object_permission(self, request, view, obj):
         if request.user.is_staff or request.user.is_superuser:
@@ -32,7 +31,6 @@ class IsOwner(permissions.BasePermission):
         return False
     
 class IsAcceptedIntern(permissions.BasePermission):
-    # allows access if the internship  is accepted
     def has_permission(self, request, view):
         if not (request.user and request.user.is_authenticated):
             return False
