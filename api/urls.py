@@ -22,7 +22,7 @@ urlpatterns = [
 
     # Intern Dashboard (For the logged-in Intern)
     path('dashboard/my-application/', views.my_application_status, name='my_application_status'),
-    path('dashboard/available/', views.get_available_internship, name='available_internship'),
+    path('dashboard/available-internship/', views.get_available_internship, name='available_internship'),
     path('intern/tasks/', views.intern_task_list),
     path('intern/tasks/<int:pk>/submit/', views.intern_submit_task),
 

@@ -162,6 +162,10 @@ class TaskSerializer(serializers.ModelSerializer):
         ]
 
 class TaskCreateSerializer(serializers.ModelSerializer):
+    assigned_to = serializers.SlugRelatedField(
+        slug_field = 'email',
+        queryset = get_user_model().objects.all()
+    )
     class Meta:
         model = Task
         fields = ['title', 'description', 'assigned_to', 'due_date']

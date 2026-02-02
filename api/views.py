@@ -394,8 +394,9 @@ def setup_password(request):
 @api_view(['GET'])
 @permission_classes([IsIntern])
 def my_application_status(request):
-    try: 
-        application = request.user.application
+    application = request.user.applications.first()
+
+    if application:
         data = {
             "internship": application.internship.title,
             "status": application.status,
@@ -408,13 +409,12 @@ def my_application_status(request):
             "data": data
         }, status= status.HTTP_200_OK)
     
-    except InternshipApplication.DoesNotExist:
-        return Response({
-            "status": 404,
-            "success": False,
-            "message": "You haven't applied for any internship yet.",
-            "data": {}
-        }, status=status.HTTP_404_NOT_FOUND)
+    return Response({
+        "status": 404,
+        "success": False,
+        "message": "You haven't applied for any internship yet.",
+        "data": {}
+    }, status=status.HTTP_404_NOT_FOUND)
     
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
