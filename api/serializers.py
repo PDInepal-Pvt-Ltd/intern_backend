@@ -132,6 +132,7 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         
         attrs['username'] = attrs.get('email')
+        data = super().validate(attrs)
         if self.user.is_superuser:
             role = "admin"
         elif self.user.is_staff:
@@ -140,9 +141,6 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
             role = "intern"
         else:
             role = "user"
-        
-        data = super().validate(attrs)
-        
         
         data['role'] = role 
         data['full_name'] = self.user.first_name
@@ -180,6 +178,18 @@ class TaskCreateSerializer(serializers.ModelSerializer):
                 "The selected user is not intern.")
         return value
 
+class AdminTaskSerializer(serializers.ModelSerializer):
+    assigned_to_name = serializers.CharField(source='assigned_to.first_name', read_only=True)
+    assigned_to_email = serializers.CharField(source='assigned_to_email', read_only=True)
+    assigned_by_name = serializers.CharField(source='assigned_by.first_name', read_only=True)
+
+    class Meta:
+        model = Task
+        fields = [
+            'id', 'title', 'description', 'status', 'due_date',
+            'assigned_to_name', 'assigned_to_email', 'assigned_by_name',
+            'submission_link', 'admin_feedback', 'created_at'
+        ]
 
 class TaskSubmissionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -210,4 +220,36 @@ class TaskReviewSerializer(serializers.ModelSerializer):
     class Meta:
         model = Task
         fields = ['admin_feedback', 'status']
+
+class AdminUserListSerializer(serializers.ModelSerializer):
+    internship_title = serializers.SerializerMethodField()
+    application_status = serializers.SerializerMethodField()
+    application_id = serializers.SerializerMethodField()
+
+    class Meta:
+        model = get_user_model()
+        fields = [
+            'id', 
+            'first_name', 
+            'email', 
+            'is_staff', 
+            'internship_title', 
+            'application_status', 
+            'application_id'
+        ]
+
+    def get_internship_title(self, obj):
+        app = obj.applications.first() 
+        if app and app.internship:
+            return app.internship.title
+        return "N/A"
+
+    def get_application_status(self, obj):
+        app = obj.applications.first()
+        return app.status if app else "N/A"
+
+    def get_application_id(self, obj):
+        app = obj.applications.first()
+        return app.id if app else None
+    
     

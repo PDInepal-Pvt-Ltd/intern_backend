@@ -7,7 +7,8 @@ from api.serializers import (
     SubscriberSerializer, BlogSerializer, ContactMessageSerializer, 
     InternshipSerializer, InternshipAppSerializer, PasswordSetupSerializer, 
     MyTokenObtainPairSerializer, TaskSerializer, TaskSubmissionSerializer, 
-    TaskCreateSerializer, TaskUpdateSerializer, TaskReviewSerializer
+    TaskCreateSerializer, TaskUpdateSerializer, TaskReviewSerializer,
+    AdminTaskSerializer, AdminUserListSerializer
     )
 from django.http import JsonResponse
 from django.core.exceptions import ValidationError
@@ -28,6 +29,7 @@ from django.contrib.auth.models import User
 from .permissions import IsIntern, IsAcceptedIntern, IsOwner, IsStaffOrAdmin
 import json
 
+User = get_user_model()
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
 
@@ -188,16 +190,6 @@ def blog_detail(request, pk):
 @api_view(['POST'])
 def create_contact(request):
     serializer = ContactMessageSerializer(data=request.data)
-
-    # if request.method == 'GET':
-    #     contacts = get_object_or_404(pk = pk)
-    #     serializer = ContactMessageSerializer(contacts)
-    #     return Response({
-    #         "status": 200,
-    #         "success": True,
-    #         "message": "The list of the contacted form is shown successfully",
-    #         "data": serializer.data
-    #     })
 
     if serializer.is_valid():
         serializer.save()
@@ -485,11 +477,20 @@ def admin_assign_task(request):
 
 @api_view(['GET'])
 @permission_classes([IsStaffOrAdmin])
-def admin_view_all_tasks(request):
-    """Admin views all tasks in the system."""
-    tasks = Task.objects.all()
-    serializer = TaskSerializer(tasks, many=True)
-    return Response(serializer.data)
+def admin_view_tasks(request):
+    if request.query_params.get('my_tasks') == 'true':
+        tasks = tasks.filter(assigned_by = request.user)
+
+    intern_id = request.query_params.get('intern')
+    if intern_id:
+        tasks = tasks.filter(assigned_to = intern_id)
+
+    serializer = AdminTaskSerializer(tasks, many = True)
+    return Response({
+        "success": True,
+        "count": tasks.count(),
+        "data": serializer.data
+    })
 
 @api_view(['PATCH', 'DELETE'])
 @permission_classes([IsStaffOrAdmin])
@@ -530,3 +531,24 @@ def admin_review_task(request, pk):
             "data": serializer.data
         }, status = status.HTTP_200_OK)
     return Response(serializer.errors, status=400)
+
+@api_view(['GET'])
+@permission_classes([IsStaffOrAdmin])
+def admin_user_manager(request):
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+
+    users = User.objects.all().order_by('-id')
+
+    role = request.query_params.get('role')
+    if role == 'intern':
+        users = users.filter(application__isnull=False)
+    elif role == 'staff':
+        users = users.filter(is_staff=True)
+
+    serializer = AdminUserListSerializer(users, many=True)
+    return Response({
+        "success": True,
+        "count": users.count(),
+        "data": serializer.data
+    })
