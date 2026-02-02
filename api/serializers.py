@@ -119,6 +119,36 @@ class PasswordSetupSerializer(serializers.Serializer):
 
         return attrs
 
+class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    
+    email = serializers.EmailField()
+    password = serializers.CharField(style={'input_type': 'password'})
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        self.fields.pop('username', None)
+
+    def validate(self, attrs):
+        
+        attrs['username'] = attrs.get('email')
+        if self.user.is_superuser:
+            role = "admin"
+        elif self.user.is_staff:
+            role = "staff"
+        elif hasattr(user, 'application'):
+            role = "intern"
+        else:
+            role = "user"
+        
+        data = super().validate(attrs)
+        
+        
+        data['role'] = role 
+        data['full_name'] = self.user.first_name
+        data['email'] = self.user.email
+        return data
+
 class TaskSerializer(serializers.ModelSerializer):
     assigned_to_email = serializers.EmailField(
         source='assigned_to.email', read_only=True)
@@ -163,46 +193,21 @@ class TaskSubmissionSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
-
-class TaskSerializer(serializers.ModelSerializer):
-    assigned_to_email = serializers.EmailField(
-        source='assigned_to.email', read_only=True)
-    assigned_by_name = serializers.CharField(
-        source='assigned_by.first_name', read_only=True)
-
+class TaskUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Task
-        fields = [
-            'id', 'title', 'description', 'status', 'due_date',
-            'submission_link', 'admin_feedback', 'assigned_to_email',
-            'assigned_by_name', 'created_at'
-        ]
-class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+        fields = ['title', 'description', 'assigned_to', 'due_date', 'status']
+
+    def validate_assigned_to(self, value):
+        try:
+            if value.application.status != 'accepted':
+                raise serializers.ValidationError("This intern is not 'accepted'.")
+        except AttributeError:
+            raise serializers.ValidationError("Selected user is not an intern.")
+        return value
+
+class TaskReviewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Task
+        fields = ['admin_feedback', 'status']
     
-    email = serializers.EmailField()
-    password = serializers.CharField(style={'input_type': 'password'})
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        
-        self.fields.pop('username', None)
-
-    def validate(self, attrs):
-        
-        attrs['username'] = attrs.get('email')
-        if self.user.is_superuser:
-            role = "admin"
-        elif self.user.is_staff:
-            role = "staff"
-        elif hasattr(user, 'application'):
-            role = "intern"
-        else:
-            role = "user"
-        
-        data = super().validate(attrs)
-        
-        
-        data['role'] = role 
-        data['full_name'] = self.user.first_name
-        data['email'] = self.user.email
-        return data
