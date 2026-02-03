@@ -4,12 +4,12 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.views import TokenObtainPairView
 from api.serializers import (
-    SubscriberSerializer, BlogSerializer, ContactMessageSerializer, 
-    InternshipSerializer, InternshipAppSerializer, PasswordSetupSerializer, 
-    MyTokenObtainPairSerializer, TaskSerializer, TaskSubmissionSerializer, 
+    SubscriberSerializer, BlogSerializer, ContactMessageSerializer,
+    InternshipSerializer, InternshipAppSerializer, PasswordSetupSerializer,
+    MyTokenObtainPairSerializer, TaskSerializer, TaskSubmissionSerializer,
     TaskCreateSerializer, TaskUpdateSerializer, TaskReviewSerializer,
     AdminTaskSerializer, AdminUserListSerializer
-    )
+)
 from django.http import JsonResponse
 from django.core.exceptions import ValidationError
 from django.core.mail import EmailMultiAlternatives
@@ -18,20 +18,23 @@ from django.template.loader import render_to_string
 from django.conf import settings
 from django.shortcuts import render, get_object_or_404
 from .models import (
-    Subscriber, Blog, ContactMessage, 
+    Subscriber, Blog, ContactMessage,
     Internship, InternshipApplication, Task
-    )
+)
 from django.views.decorators.csrf import csrf_exempt
 from djangorestframework_camel_case.parser import CamelCaseMultiPartParser, CamelCaseFormParser, CamelCaseJSONParser
 from django.db import transaction
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import User  
+from django.contrib.auth.models import User
 from .permissions import IsIntern, IsAcceptedIntern, IsOwner, IsStaffOrAdmin
 import json
 
 User = get_user_model()
+
+
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
+
 
 def PravidhiView(request):
     return render(request, 'index.html')
@@ -127,7 +130,7 @@ def blog_list(request):
     if request.method == 'POST':
         if not (request.user.is_authenticated and request.user.is_staff):
             return Response({"detail": "Admin access required"}, status=403)
-        
+
         serializer = BlogSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -206,6 +209,30 @@ def create_contact(request):
         "errors": serializer.errors
     }, status=status.HTTP_400_BAD_REQUEST)
 
+@api_view(['GET'])
+@permission_classes([IsStaffOrAdmin])
+def admin_contact_list(request):
+    messages = ContactMessage.objects.all().order_by('-created_at')
+
+    serializer = ContactMessageSerializer(messages, many = True)
+    return Response({
+        "status": 200,
+        "success": True,
+        "messages": "Contact messages fetched successfully.",
+        "data": serializer.data
+    }, status=status.HTTP_200_OK)
+
+@api_view(['DELETE'])
+@permission_classes([IsStaffOrAdmin])
+def admin_contact_delete(request, pk):
+    message = get_object_or_404(ContactMessage, pk=pk)
+    message.delete()
+    return Response({
+        "status": 200,
+        "success": True,
+        "message": "Contact message has been deleted permantly.",
+        "data": []
+    }, status=status.HTTP_200_OK)
 
 @api_view(['GET', 'POST'])
 def internship_list(request):
@@ -327,7 +354,7 @@ def create_internship_application(request):
                         "success": False,
                         "message": "This internship is full."
                     }, status=status.HTTP_400_BAD_REQUEST)
-                
+
                 if user and hasattr(user, 'application'):
                     return Response({
                         "success": False,
@@ -367,6 +394,7 @@ def create_internship_application(request):
         "errors": serializer.errors
     }, status=status.HTTP_400_BAD_REQUEST)
 
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 @parser_classes([CamelCaseJSONParser, CamelCaseFormParser, CamelCaseMultiPartParser])
@@ -378,16 +406,17 @@ def setup_password(request):
         password = serializer.validated_data['password']
         # Used __iexact to be safe with Capital Letters
         user = get_object_or_404(User, email__iexact=email)
-        
+
         if user.has_usable_password():
             return Response({"success": False, "message": "Password already set."}, status=400)
-        
+
         user.set_password(password)
         user.is_active = True
         user.save()
         return Response({"success": True, "message": "Password set successfully!"})
-    print("SERIALIZER ERRORS:", serializer.errors) 
+    print("SERIALIZER ERRORS:", serializer.errors)
     return Response(serializer.errors, status=400)
+
 
 @api_view(['GET'])
 @permission_classes([IsIntern])
@@ -405,15 +434,16 @@ def my_application_status(request):
             "success": True,
             "message": "Your application status fetched successfully",
             "data": data
-        }, status= status.HTTP_200_OK)
-    
+        }, status=status.HTTP_200_OK)
+
     return Response({
         "status": 404,
         "success": False,
         "message": "You haven't applied for any internship yet.",
         "data": {}
     }, status=status.HTTP_404_NOT_FOUND)
-    
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_available_internship(request):
@@ -428,7 +458,8 @@ def get_available_internship(request):
         "status": 200,
         "success": True,
         "data": serializer.data,
-    },status=status.HTTP_200_OK)
+    }, status=status.HTTP_200_OK)
+
 
 @api_view(['GET'])
 @permission_classes([IsAcceptedIntern])
@@ -440,15 +471,17 @@ def intern_task_list(request):
         "data": serializer.data
     })
 
+
 @api_view(['PATCH'])
 @permission_classes([IsAcceptedIntern, IsOwner])
 def intern_submit_task(request, pk):
     task = get_object_or_404(Task, pk=pk, assigned_to=request.user)
-    
-    if task.status == 'completed' and task.submission_link:
-         return Response({"message": "Task already submitted."}, status=400)
 
-    serializer = TaskSubmissionSerializer(task, data=request.data, partial=True)
+    if task.status == 'completed' and task.submission_link:
+        return Response({"message": "Task already submitted."}, status=400)
+
+    serializer = TaskSubmissionSerializer(
+        task, data=request.data, partial=True)
     if serializer.is_valid():
         serializer.save()
         return Response({
@@ -458,13 +491,14 @@ def intern_submit_task(request, pk):
         })
     return Response(serializer.errors, status=400)
 
+
 @csrf_exempt
 @api_view(['POST'])
 @permission_classes([IsStaffOrAdmin])
 def admin_assign_task(request):
     serializer = TaskCreateSerializer(data=request.data)
     if serializer.is_valid():
-        serializer.save(assigned_by=request.user) 
+        serializer.save(assigned_by=request.user)
         return Response({
             "success": True,
             "message": "Task assigned successfully.",
@@ -472,27 +506,29 @@ def admin_assign_task(request):
         }, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=400)
 
+
 @api_view(['GET'])
 @permission_classes([IsStaffOrAdmin])
 def admin_view_tasks(request):
     if request.query_params.get('my_tasks') == 'true':
-        tasks = tasks.filter(assigned_by = request.user)
+        tasks = tasks.filter(assigned_by=request.user)
 
     intern_id = request.query_params.get('intern')
     if intern_id:
-        tasks = tasks.filter(assigned_to = intern_id)
+        tasks = tasks.filter(assigned_to=intern_id)
 
-    serializer = AdminTaskSerializer(tasks, many = True)
+    serializer = AdminTaskSerializer(tasks, many=True)
     return Response({
         "success": True,
         "count": tasks.count(),
         "data": serializer.data
     })
 
+
 @api_view(['PATCH', 'DELETE'])
 @permission_classes([IsStaffOrAdmin])
 def admin_edit_task(request, pk):
-    task = get_object_or_404(Task, pk = pk)
+    task = get_object_or_404(Task, pk=pk)
     if request.method == 'DELETE':
         task.delete()
         return Response({
@@ -501,7 +537,7 @@ def admin_edit_task(request, pk):
             "message": "Task deleted successfully.",
             "data": []
         }, status=status.HTTP_200_OK)
-    
+
     serializer = TaskUpdateSerializer(task, data=request.data, partial=True)
     if serializer.is_valid():
         serializer.save()
@@ -511,8 +547,9 @@ def admin_edit_task(request, pk):
             "message": "Task updated successfully.",
             "data": serializer.data
         }, status=status.HTTP_200_OK)
-    
+
     return Response(serializer.errors, status=400)
+
 
 @api_view(['PATCH'])
 @permission_classes([IsStaffOrAdmin])
@@ -526,8 +563,9 @@ def admin_review_task(request, pk):
             "success": True,
             "message": "Feedback updated.",
             "data": serializer.data
-        }, status = status.HTTP_200_OK)
+        }, status=status.HTTP_200_OK)
     return Response(serializer.errors, status=400)
+
 
 @api_view(['GET'])
 @permission_classes([IsStaffOrAdmin])
@@ -551,10 +589,12 @@ def admin_user_manager(request):
         "data": serializer.data
     }, status=status.HTTP_200_OK)
 
+
 @api_view(['GET'])
 @permission_classes([IsStaffOrAdmin])
 def admin_application_list(request):
-    apps = InternshipApplication.objects.select_related('user', 'internship').all().order_by('applied_at')
+    apps = InternshipApplication.objects.select_related(
+        'user', 'internship').all().order_by('applied_at')
     status_filter = request.query_params.get('status')
     if status_filter:
         apps = apps.filter(status=status_filter)
@@ -565,7 +605,8 @@ def admin_application_list(request):
         "success": True,
         "count": apps.count(),
         "data": serializer.data
-    }, status= status.HTTP_200_OK)
+    }, status=status.HTTP_200_OK)
+
 
 @api_view(['PATCH'])
 @permission_classes([IsStaffOrAdmin])
@@ -579,8 +620,8 @@ def admin_update_application_status(request, pk):
             "success": False,
             "message": "Invalid status choice. Must be 'accepted', 'rejected', etc.",
             "data": None
-         }, status=status.HTTP_400_BAD_REQUEST)
-    
+        }, status=status.HTTP_400_BAD_REQUEST)
+
     application.status = status_value
     application.save()
 
@@ -591,5 +632,5 @@ def admin_update_application_status(request, pk):
         "data": {
             "application_id": application.id,
             "new_status": application.status
-        }    
-        }, status=status.HTTP_200_OK)
+        }
+    }, status=status.HTTP_200_OK)

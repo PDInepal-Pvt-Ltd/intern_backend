@@ -35,6 +35,8 @@ urlpatterns = [
     
     # User and Application Management (The ones we built today)
     path('management/users/', views.admin_user_manager, name='admin_user_management'),
+    path('management/contacts/', views.admin_contact_list, name='admin_contact_list'),
+    path('management/contacts/<int:pk>/delete/', views.admin_contact_delete, name='admin_contact_delete'),
     path('management/applications/', views.admin_application_list, name='admin_application_list'),
     path('management/applications/<int:pk>/status/', views.admin_update_application_status, name='admin_update_application_status')
 ]
