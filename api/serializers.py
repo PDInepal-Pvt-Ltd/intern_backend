@@ -73,9 +73,14 @@ class InternshipSerializer(serializers.ModelSerializer):
 
 
 class InternshipAppSerializer(serializers.ModelSerializer):
+    internship_title = serializers.CharField(source='internship.title', read_only=True)
     class Meta:
         model = InternshipApplication
-        fields = "__all__"
+        fields = [
+            'id', 'full_name', 'email', 'contact_number', 'college_name', 
+            'duration', 'gender', 'address', 'dob', 'status', 
+            'cv_file', 'applied_at', 'internship', 'internship_title', 'user'
+        ]
         read_only_fields = ['user', 'status']
 
         validators = [
@@ -93,7 +98,6 @@ class InternshipAppSerializer(serializers.ModelSerializer):
         if value:
             return value.replace(" ", "")
         return value
-
 
 class PasswordSetupSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -182,7 +186,7 @@ class TaskCreateSerializer(serializers.ModelSerializer):
 
 class AdminTaskSerializer(serializers.ModelSerializer):
     assigned_to_name = serializers.CharField(source='assigned_to.first_name', read_only=True)
-    assigned_to_email = serializers.CharField(source='assigned_to_email', read_only=True)
+    assigned_to_email = serializers.CharField(source='assigned_to.email', read_only=True)
     assigned_by_name = serializers.CharField(source='assigned_by.first_name', read_only=True)
 
     class Meta:
@@ -257,3 +261,6 @@ class AdminUserListSerializer(serializers.ModelSerializer):
         return app.id if app else None
     
     
+class BroadcastSerializer(serializers.Serializer):
+    subject = serializers.CharField(max_length=255)
+    message_body = serializers.CharField()

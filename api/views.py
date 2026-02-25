@@ -8,13 +8,14 @@ from api.serializers import (
     InternshipSerializer, InternshipAppSerializer, PasswordSetupSerializer,
     MyTokenObtainPairSerializer, TaskSerializer, TaskSubmissionSerializer,
     TaskCreateSerializer, TaskUpdateSerializer, TaskReviewSerializer,
-    AdminTaskSerializer, AdminUserListSerializer
+    AdminTaskSerializer, AdminUserListSerializer, BroadcastSerializer
 )
 from django.http import JsonResponse
 from django.core.exceptions import ValidationError
 from django.core.mail import EmailMultiAlternatives
 from django.core.validators import validate_email
 from django.template.loader import render_to_string
+from django.utils.html import strip_tags
 from django.conf import settings
 from django.shortcuts import render, get_object_or_404
 from .models import (
@@ -491,6 +492,24 @@ def intern_submit_task(request, pk):
         })
     return Response(serializer.errors, status=400)
 
+@api_view(['GET'])
+@permission_classes([IsStaffOrAdmin])
+def admin_dashboard_stats(request):
+    total_users = User.objects.count()
+    total_blogs = Blog.objects.count()
+    total_applications = InternshipApplication.objects.count()
+    total_contacts = ContactMessage.objects.count()
+
+    return Response({
+        "status": 200,
+        "success": True,
+        "data": {
+        "totalUsers": total_applications,
+        "blogPosts": total_blogs,
+        "internshipApplication": total_applications,
+        "contactInquiries": total_contacts,
+        }
+    }, status=status.HTTP_200_OK)
 
 @csrf_exempt
 @api_view(['POST'])
@@ -510,6 +529,8 @@ def admin_assign_task(request):
 @api_view(['GET'])
 @permission_classes([IsStaffOrAdmin])
 def admin_view_tasks(request):
+    tasks = Task.objects.all().order_by('-created_at')
+
     if request.query_params.get('my_tasks') == 'true':
         tasks = tasks.filter(assigned_by=request.user)
 
@@ -594,7 +615,7 @@ def admin_user_manager(request):
 @permission_classes([IsStaffOrAdmin])
 def admin_application_list(request):
     apps = InternshipApplication.objects.select_related(
-        'user', 'internship').all().order_by('applied_at')
+        'internship','user').all().order_by('applied_at')
     status_filter = request.query_params.get('status')
     if status_filter:
         apps = apps.filter(status=status_filter)
@@ -634,3 +655,52 @@ def admin_update_application_status(request, pk):
             "new_status": application.status
         }
     }, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@permission_classes([IsStaffOrAdmin])
+def admin_broadcast_newsletter(request):
+    serializer = BroadcastSerializer(data=request.data)
+
+    if serializer.is_valid():
+        subject = serializer.validated_data['subject']
+        message_body = serializer.validated_data['message_body']
+        subscriber_emails = Subscriber.objects.all().values_list('email', flat=True)
+
+        if not subscriber_emails:
+            return Response({
+                "status": 400,
+                "message": "No subscribers found.",
+            }, status=400)
+        
+        context = {
+            'subject': subject,
+            'message_body': message_body,
+            'website_url': 'http://localhost:5173',
+        }
+
+        html_content = render_to_string('emails/broadcast_template.html', context)
+        text_content = strip_tags(html_content)
+
+        try:
+            email = EmailMultiAlternatives(
+                subject=f"Pravidhi Update: {subject}",
+                body=message_body,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[settings.DEFAULT_FROM_EMAIL],
+                bcc=list(subscriber_emails),
+            )
+            email.attach_alternative(html_content, "text/html")
+            email.send()
+
+            return Response({
+                "status": 200,
+                "success": True,
+                "message": f"Broadcast sent to {len(subscriber_emails)} subscribers."
+            })
+        except Exception as e:
+            return Response({
+                "status": 500,
+                "message": str(e)
+            },status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    return Response(serializer.errors, status=400)
