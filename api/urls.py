@@ -40,5 +40,6 @@ urlpatterns = [
     path('management/contacts/<int:pk>/delete/', views.admin_contact_delete, name='admin_contact_delete'),
     path('management/applications/', views.admin_application_list, name='admin_application_list'),
     path('management/applications/<int:pk>/status/', views.admin_update_application_status, name='admin_update_application_status'),
-    path('management/newsletter/broadcast/', views.admin_broadcast_newsletter, name='broadcast_news')
+    path('management/newsletter/broadcast/', views.admin_broadcast_newsletter, name='broadcast_news'),
+    path('management/users/create-admin/', views.admin_create_staff, name='create_admin')
 ]

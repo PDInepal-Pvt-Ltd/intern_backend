@@ -38,7 +38,7 @@ class BlogSerializer(serializers.ModelSerializer):
 
 class ContactMessageSerializer(serializers.ModelSerializer):
     phone = serializers.CharField(required=True)
-    received_at_formatted = serializers.SerializerMethodField()
+    created_at_formatted = serializers.SerializerMethodField()
 
     class Meta:
         model = ContactMessage
@@ -51,6 +51,7 @@ class ContactMessageSerializer(serializers.ModelSerializer):
             'subject',
             'message',
             'created_at',
+            'created_at_formatted',
             'status',
         )
         read_only_fields = ['id', 'created_at']
@@ -71,8 +72,8 @@ class ContactMessageSerializer(serializers.ModelSerializer):
             )
         return value
 
-    def get_received_at_formatted(self, obj):
-        return format_to_human_date(obj.received_at)
+    def get_created_at_formatted(self, obj):
+        return format_to_human_date(obj.created_at)
 
 class InternshipSerializer(serializers.ModelSerializer):
 
@@ -294,3 +295,21 @@ class AdminUserListSerializer(serializers.ModelSerializer):
 class BroadcastSerializer(serializers.Serializer):
     subject = serializers.CharField(max_length=255)
     message_body = serializers.CharField()
+
+class AdminCreateSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, min_length=8)
+
+    class Meta:
+        model = get_user_model()
+        fields = ['first_name', 'email', 'password']
+
+    def create(self, validated_data):
+        user = get_user_model().objects.create_user(
+            username = validated_data['email'],
+            email = validated_data['email'],
+            first_name = validated_data['first_name'],
+            password = validated_data['password'],
+            is_staff = True,
+            is_active = True
+        )
+        return user

@@ -8,7 +8,8 @@ from api.serializers import (
     InternshipSerializer, InternshipAppSerializer, PasswordSetupSerializer,
     MyTokenObtainPairSerializer, TaskSerializer, TaskSubmissionSerializer,
     TaskCreateSerializer, TaskUpdateSerializer, TaskReviewSerializer,
-    AdminTaskSerializer, AdminUserListSerializer, BroadcastSerializer
+    AdminTaskSerializer, AdminUserListSerializer, BroadcastSerializer, 
+    AdminCreateSerializer
 )
 from django.http import JsonResponse
 from django.core.exceptions import ValidationError
@@ -27,7 +28,7 @@ from djangorestframework_camel_case.parser import CamelCaseMultiPartParser, Came
 from django.db import transaction
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User
-from .permissions import IsIntern, IsAcceptedIntern, IsOwner, IsStaffOrAdmin
+from .permissions import IsIntern, IsAcceptedIntern, IsOwner, IsStaffOrAdmin, IsSuperUser
 import json
 
 User = get_user_model()
@@ -723,3 +724,19 @@ def admin_broadcast_newsletter(request):
             },status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     return Response(serializer.errors, status=400)
+
+@api_view(['POST'])
+@permission_classes([IsSuperUser])
+def admin_create_staff(request):
+    serializer = AdminCreateSerializer(data = request.data)
+
+    if serializer.is_valid():
+        serializer.save()
+        return Response({
+            "status": 201,
+            "success": True,
+            "message": "New Admin created successfully.",
+            "data": serializer.data
+        }, status = status.HTTP_201_CREATED)
+    
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
