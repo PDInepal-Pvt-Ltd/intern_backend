@@ -6,9 +6,19 @@ from django.contrib.auth.password_validation import validate_password
 import re
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError as DjangoValidationError
+def format_to_human_date(dt_object):
+    if not dt_object:
+        return None
+    day = dt_object.day
+
+    if 11 <= day <= 13:
+        suffix = 'th'
+    else:
+        suffix = {1: 'st', 2: 'nd', 3: 'rd'}.get(day % 10, 'th')
+
+    return dt_object.strftime(f"{day}{suffix} %B %Y")
 
 user = get_user_model()
-
 
 class SubscriberSerializer(serializers.ModelSerializer):
     class Meta:
@@ -17,13 +27,18 @@ class SubscriberSerializer(serializers.ModelSerializer):
 
 
 class BlogSerializer(serializers.ModelSerializer):
+    created_at_formatted = serializers.SerializerMethodField()
     class Meta:
         model = Blog
         fields = "__all__"
 
+    def get_created_at_formatted(self, obj):
+        return format_to_human_date(obj.date_created_at)
+
 
 class ContactMessageSerializer(serializers.ModelSerializer):
     phone = serializers.CharField(required=True)
+    received_at_formatted = serializers.SerializerMethodField()
 
     class Meta:
         model = ContactMessage
@@ -56,6 +71,8 @@ class ContactMessageSerializer(serializers.ModelSerializer):
             )
         return value
 
+    def get_received_at_formatted(self, obj):
+        return format_to_human_date(obj.received_at)
 
 class InternshipSerializer(serializers.ModelSerializer):
 
@@ -74,12 +91,14 @@ class InternshipSerializer(serializers.ModelSerializer):
 
 class InternshipAppSerializer(serializers.ModelSerializer):
     internship_title = serializers.CharField(source='internship.title', read_only=True)
+    applied_at_formatted = serializers.SerializerMethodField()
     class Meta:
         model = InternshipApplication
         fields = [
             'id', 'full_name', 'email', 'contact_number', 'college_name', 
             'duration', 'gender', 'address', 'dob', 'status', 
-            'cv_file', 'applied_at', 'internship', 'internship_title', 'user'
+            'cv_file', 'applied_at', 'internship', 'internship_title', 'user',
+            'applied_at_formatted'
         ]
         read_only_fields = ['user', 'status']
 
@@ -98,6 +117,9 @@ class InternshipAppSerializer(serializers.ModelSerializer):
         if value:
             return value.replace(" ", "")
         return value
+    
+    def get_applied_at_formatted(self, obj):
+        return format_to_human_date(obj.applied_at)
 
 class PasswordSetupSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -188,14 +210,22 @@ class AdminTaskSerializer(serializers.ModelSerializer):
     assigned_to_name = serializers.CharField(source='assigned_to.first_name', read_only=True)
     assigned_to_email = serializers.CharField(source='assigned_to.email', read_only=True)
     assigned_by_name = serializers.CharField(source='assigned_by.first_name', read_only=True)
-
+    due_date_formatted = serializers.SerializerMethodField()
+    created_at_formatted = serializers.SerializerMethodField()
     class Meta:
         model = Task
         fields = [
-            'id', 'title', 'description', 'status', 'due_date',
+            'id', 'title', 'description', 'status', 'due_date', 'due_date_formatted'
             'assigned_to_name', 'assigned_to_email', 'assigned_by_name',
-            'submission_link', 'admin_feedback', 'created_at'
+            'submission_link', 'admin_feedback', 'created_at',
+            'created_at_formatted'
         ]
+
+    def get_due_date_formatted(self, obj):
+        return format_to_human_date(obj.due_date)
+    
+    def get_created_at_formatted(self, obj):
+        return format_to_human_date(obj.created_at)
 
 class TaskSubmissionSerializer(serializers.ModelSerializer):
     class Meta:
