@@ -495,21 +495,40 @@ def intern_submit_task(request, pk):
 @api_view(['GET'])
 @permission_classes([IsStaffOrAdmin])
 def admin_dashboard_stats(request):
-    total_users = User.objects.count()
-    total_blogs = Blog.objects.count()
-    total_applications = InternshipApplication.objects.count()
-    total_contacts = ContactMessage.objects.count()
+    user_count = User.objects.count()
+    blog_count = Blog.objects.count()
+    app_count = InternshipApplication.objects.count()
+    contact_count = ContactMessage.objects.count()
+    subscriber_count = Subscriber.objects.count()
+
+    stats_data = [
+        {
+            "title": "Total Users",
+            "value": user_count
+        },
+        {
+            "title": "Blog Posts",
+            "value": blog_count
+        },
+        {
+            "title": "Internship Applications",
+            "value": app_count
+        },
+        {
+            "title": "Contact Inquiries",
+            "value": contact_count
+        },
+        {
+            "title": "Total Subscribers",
+            "value": subscriber_count
+        }
+    ]
 
     return Response({
         "status": 200,
         "success": True,
-        "data": {
-        "totalUsers": total_applications,
-        "blogPosts": total_blogs,
-        "internshipApplication": total_applications,
-        "contactInquiries": total_contacts,
-        }
-    }, status=status.HTTP_200_OK)
+        "data": stats_data
+    }, status=200)
 
 @csrf_exempt
 @api_view(['POST'])
